@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "r2d2-pod",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none",
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "SESSIONS", "class_name": "Sessions" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sessions"] }],
+  "workflows": [
+    { "name": "r2d2-pod-deploy", "binding": "DEPLOY", "class_name": "DeployWorkflow" }
+  ],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "vars": {
+    // The image built from r2d2/deploy/docker (GHCR, public); `latest` follows release tags.
+    "IMAGE": "ghcr.io/deadjoe/r2d2:latest",
+    // The app needs about 5 GB of GPU memory; 16 GB is the class it is validated on.
+    "MIN_GPU_GB": "16",
+    "MAX_PRICE_PER_HR": "0.60",
+    "CLOUD": "SECURE",
+    // Cost guard: the pod is deleted this many hours after launch unless stopped earlier.
+    "DEFAULT_TTL_HOURS": "2",
+    "MAX_TTL_HOURS": "8",
+    // Image layers (~2 GB) plus 3.3 GB of weights.
+    "CONTAINER_DISK_GB": "20"
+  }
+  // Secrets (wrangler secret put): RUNPOD_API_KEY (required), LAUNCH_KEY (strongly advised;
+  // gates the page + API with a cookie set from /?k=<key>), NOTIFY_URL (optional ntfy/Bark/… URL)
+}
