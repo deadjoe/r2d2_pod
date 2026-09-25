@@ -32,5 +32,6 @@
     "CONTAINER_DISK_GB": "20"
   }
   // Secrets (wrangler secret put): RUNPOD_API_KEY (required), LAUNCH_KEY (strongly advised;
-  // gates the page + API with a cookie set from /?k=<key>), NOTIFY_URL (optional ntfy/Bark/… URL)
+  // gates the page + API with a cookie set from /?k=<key>), NOTIFY_URL (optional Bark or ntfy URL),
+  // NOTIFY_TOKEN (ntfy access token; needed with ntfy.sh, see README)
 }
