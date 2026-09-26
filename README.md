@@ -43,6 +43,10 @@ fills in from the pod (`gpu`, `weights`, `start`, `ready`), usually within 4 min
 **ready**, tap **OPEN R2D2**: the link carries a per-session access key that the app turns
 into a cookie, and it stops working when the pod is gone.
 
+**ready** means the Q8_0 recogniser is loaded. The pod then downloads the F16 recogniser
+(4.1 GB) in the background and reports it as `extra`; the F16 button in the app stays grey
+until both of its files are in and verified. A failed `extra` leaves the session running.
+
 **Stop & delete pod** ends a session at once; otherwise the time limit does. Every 15 minutes
 the cron also deletes any `r2d2-pod-*` pod whose session has ended or expired, or that has
 no session and is more than six hours old.
@@ -71,11 +75,11 @@ Defaults in `wrangler.jsonc`:
 | var | default | |
 |---|---|---|
 | `IMAGE` | `ghcr.io/deadjoe/r2d2:latest` | must be public |
-| `MIN_GPU_GB` | `16` | the app itself uses about 5 GB |
+| `MIN_GPU_GB` | `16` | the app itself uses about 5 GB with Q8_0; F16's weights are 1.9 GB larger |
 | `MAX_PRICE_PER_HR` | `0.60` | USD |
 | `CLOUD` | `SECURE` | or `COMMUNITY` |
 | `DEFAULT_TTL_HOURS` / `MAX_TTL_HOURS` | `2` / `8` | time limit and its cap |
-| `CONTAINER_DISK_GB` | `20` | holds the image and 3.3 GB of weights |
+| `CONTAINER_DISK_GB` | `20` | holds the image (about 1 GB to pull) and 7.4 GB of weights: 3.3 GB before ready, 4.1 GB (F16) after |
 
 The page overrides the time limit, memory, price and cloud per launch. Price and stock are
 read for the chosen cloud alone, and a pod that RunPod charges more for than the ceiling is

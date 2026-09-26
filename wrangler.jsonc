@@ -28,7 +28,7 @@
     // Cost guard: the pod is deleted this many hours after launch unless stopped earlier.
     "DEFAULT_TTL_HOURS": "2",
     "MAX_TTL_HOURS": "8",
-    // Image layers (~2 GB) plus 3.3 GB of weights.
+    // The image (~1 GB to pull) plus 7.4 GB of weights: 3.3 GB before ready, F16 after.
     "CONTAINER_DISK_GB": "20"
   }
   // Secrets (wrangler secret put): RUNPOD_API_KEY (required), LAUNCH_KEY (strongly advised;

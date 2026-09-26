@@ -13,10 +13,11 @@ export interface DeployParams {
 }
 
 const RUNNING_POLL_S = 20;
-const RUNNING_MAX_MIN = 20; // the image is ~2 GB; a cold host pulls it in a few minutes
+const RUNNING_MAX_MIN = 20; // the image is ~1 GB to pull; a cold host pulls it in a few minutes
 const READY_POLL_S = 15;
-const READY_MAX_MIN = 25;   // 3.3 GB of weights, then the recogniser loads
-/** steps reported by r2d2-start inside the pod */
+const READY_MAX_MIN = 25;   // 3.3 GB of weights, then the recogniser loads (F16 follows after ready)
+/** steps reported by r2d2-start inside the pod up to ready; its later "extra" step
+ *  (the background F16 download) never decides the launch */
 const POD_STEPS = new Set(["gpu", "weights", "start", "ready"]);
 
 export class DeployWorkflow extends WorkflowEntrypoint<Env, DeployParams> {
@@ -156,7 +157,7 @@ export class DeployWorkflow extends WorkflowEntrypoint<Env, DeployParams> {
       return rest;
     });
     if (!after || after.state === "stopping" || after.state === "ended" || after.state === "failed") return;
-    const failedStep = after.events.find((e) => e.status === "failed");
+    const failedStep = after.events.find((e) => e.status === "failed" && POD_STEPS.has(e.step));
     if (!ready || failedStep) {
       await stopPod(env, sessionId, pod.id, failedStep ? `${failedStep.step}: ${failedStep.message ?? ""}` : "the app never came up");
       await fail("start", failedStep ? `${failedStep.step} failed — ${failedStep.message ?? ""}` : "the app did not answer within the time limit");

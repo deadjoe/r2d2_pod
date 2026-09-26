@@ -8,7 +8,7 @@ export type SessionState =
 
 export interface ProgressEvent {
   ts: string;
-  step: string;     // select | pod | boot | gpu | weights | start | ready | stop | ttl | error
+  step: string;     // select | pod | boot | gpu | weights | start | ready | extra | stop | ttl | error
   status: string;   // started | done | failed | info
   message?: string;
 }
