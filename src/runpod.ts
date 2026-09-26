@@ -12,10 +12,14 @@ export interface GpuType {
   memoryInGb: number;
   secureCloud: boolean;
   communityCloud: boolean;
-  securePrice: number | null;
-  communityPrice: number | null;
-  lowestPrice: { stockStatus: string | null; uninterruptablePrice: number | null } | null;
+  /** stock and on-demand price in each cloud, each queried on its own: the list prices
+   *  (securePrice / communityPrice) include placeholders such as 0.50 for a cloud that has
+   *  no such card, and an unfiltered lowestPrice mixes the two clouds */
+  secure: CloudOffer | null;
+  community: CloudOffer | null;
 }
+
+export interface CloudOffer { stockStatus: string | null; uninterruptablePrice: number | null }
 
 export interface Candidate {
   id: string;
@@ -38,8 +42,9 @@ async function call(url: string, key: string, init: RequestInit): Promise<Respon
 }
 
 export async function listGpuTypes(key: string): Promise<GpuType[]> {
-  const query = `query { gpuTypes { id displayName memoryInGb secureCloud communityCloud securePrice communityPrice
-    lowestPrice(input:{gpuCount:1}) { stockStatus uninterruptablePrice } } }`;
+  const query = `query { gpuTypes { id displayName memoryInGb secureCloud communityCloud
+    secure: lowestPrice(input:{gpuCount:1, secureCloud:true}) { stockStatus uninterruptablePrice }
+    community: lowestPrice(input:{gpuCount:1, secureCloud:false}) { stockStatus uninterruptablePrice } } }`;
   const res = await call(GQL, key, { method: "POST", body: JSON.stringify({ query }) });
   if (!res.ok) throw new Error(`gpuTypes ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { data?: { gpuTypes: GpuType[] }; errors?: unknown };
@@ -54,10 +59,13 @@ export function pickCandidates(
 ): Candidate[] {
   const out: Candidate[] = [];
   for (const g of gpus) {
+    // NVIDIA only: the image is CUDA (the list also has AMD cards)
+    if (!/NVIDIA|Tesla/i.test(g.id)) continue;
     if (g.memoryInGb < opts.minGb || UNSUPPORTED.test(g.displayName) || UNSUPPORTED.test(g.id)) continue;
-    if (opts.cloud === "SECURE" ? !g.secureCloud : !g.communityCloud) continue;
-    const price = opts.cloud === "SECURE" ? g.securePrice : g.communityPrice;
-    const stock = g.lowestPrice?.stockStatus ?? null;
+    // the chosen cloud's own offer: in stock there, at the price actually charged there
+    const offer = opts.cloud === "SECURE" ? g.secure : g.community;
+    const price = offer?.uninterruptablePrice ?? null;
+    const stock = offer?.stockStatus ?? null;
     if (!price || price <= 0 || price > opts.maxPrice || !stock) continue;
     out.push({ id: g.id, displayName: g.displayName, memoryInGb: g.memoryInGb, pricePerHr: price, stock });
   }
@@ -100,6 +108,7 @@ export async function createPod(
       allowedCudaVersions: ["12.8", "12.9", "13.0"], // the image needs a CUDA 12.8 driver (R570+)
       volumeInGb: 0, // no persistent volume: weights live on the container disk for the session
       minRAMPerGPU: 8,
+      minVCPUPerGPU: 4, // the web server and two llama-servers; RunPod's default is 2
       supportPublicIp: false,
     }),
   });
